@@ -5,12 +5,13 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
+	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	env "github.com/joho/godotenv"
 )
 
+var FilesBlockTable map[int64]*sync.Mutex = make(map[int64]*sync.Mutex, 10)
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("/WhatToDo"),
@@ -45,6 +46,12 @@ func MainBot() {
 		if update.Message == nil {
 			continue
 		}
+
+		_, isExists := FilesBlockTable[update.Message.Chat.ID]
+		if !isExists {
+			FilesBlockTable[update.Message.Chat.ID] = &sync.Mutex{}
+		}
+		//FilesBlockTable[update.Message.Chat.ID].Lock()
 		if update.Message.IsCommand() {
 			go commandHandler(update, bot)
 			continue
@@ -57,6 +64,9 @@ func MainBot() {
 }
 
 func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
+	FilesBlockTable[update.Message.Chat.ID].Lock()
+	defer FilesBlockTable[update.Message.Chat.ID].Unlock()
+
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 	file, _ := openFile(update.Message.Chat.ID, os.O_APPEND|os.O_CREATE)
 
@@ -71,10 +81,11 @@ func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 		msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Задача добавлена")
 		bot.Send(msg)
 	}
-	time.Sleep(10 * time.Second)
 }
 
 func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
+	FilesBlockTable[update.Message.Chat.ID].Lock()
+	defer FilesBlockTable[update.Message.Chat.ID].Unlock()
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 	buffer := bytes.Buffer{}
 	switch update.Message.Command() {
@@ -113,5 +124,4 @@ func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	if _, err := bot.Send(msg); err != nil {
 		log.Panic(err)
 	}
-	time.Sleep(10 * time.Second)
 }
