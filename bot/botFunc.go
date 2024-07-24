@@ -20,6 +20,9 @@ func getToDoList(chatID int64) (string, error) {
 	if err != nil {
 		return "", baseErr
 	}
+	if len(data) == 0 {
+		return "", baseErr
+	}
 	var outputData []byte = []byte("Список дел:\n")
 	outputData = append(outputData, data...)
 
