@@ -11,7 +11,6 @@ import (
 	env "github.com/joho/godotenv"
 )
 
-var FilesBlockTable map[int64]*sync.Mutex = make(map[int64]*sync.Mutex, 10)
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("/WhatToDo"),
@@ -36,7 +35,8 @@ func MainBot() {
 		log.Panic(err)
 	}
 
-	bot.Debug = true
+	//bot.Debug = true
+	var filesBlockTable map[int64]*sync.Mutex = make(map[int64]*sync.Mutex, 10)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -47,27 +47,27 @@ func MainBot() {
 			continue
 		}
 
-		_, isExists := FilesBlockTable[update.Message.Chat.ID]
+		_, isExists := filesBlockTable[update.Message.Chat.ID]
 		if !isExists {
-			FilesBlockTable[update.Message.Chat.ID] = &sync.Mutex{}
+			filesBlockTable[update.Message.Chat.ID] = &sync.Mutex{}
 		}
-		//FilesBlockTable[update.Message.Chat.ID].Lock()
+
 		if update.Message.IsCommand() {
-			go commandHandler(update, bot)
+			go commandHandler(update, bot, filesBlockTable[update.Message.Chat.ID])
 			continue
 		}
 		if update.Message.Text != "" {
-			go textHandler(update, bot)
+			go textHandler(update, bot, filesBlockTable[update.Message.Chat.ID])
 			continue
 		}
 	}
 }
 
-func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
-	FilesBlockTable[update.Message.Chat.ID].Lock()
-	defer FilesBlockTable[update.Message.Chat.ID].Unlock()
+func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI, mutex *sync.Mutex) {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+	var msg tgbotapi.MessageConfig
 	file, _ := openFile(update.Message.Chat.ID, os.O_APPEND|os.O_CREATE)
 
 	if file == nil {
@@ -83,13 +83,14 @@ func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	}
 }
 
-func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
-	FilesBlockTable[update.Message.Chat.ID].Lock()
-	defer FilesBlockTable[update.Message.Chat.ID].Unlock()
+func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI, mutex *sync.Mutex) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-	buffer := bytes.Buffer{}
+
 	switch update.Message.Command() {
 	case "start":
+		buffer := bytes.Buffer{}
 		msg.ReplyMarkup = numericKeyboard
 		buffer.WriteString("Привет ")
 		buffer.WriteString(update.Message.From.FirstName)
