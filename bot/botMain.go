@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
+	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	env "github.com/joho/godotenv"
@@ -35,7 +35,8 @@ func MainBot() {
 		log.Panic(err)
 	}
 
-	bot.Debug = true
+	//bot.Debug = true
+	var filesBlockTable map[int64]*sync.Mutex = make(map[int64]*sync.Mutex, 10)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -45,19 +46,28 @@ func MainBot() {
 		if update.Message == nil {
 			continue
 		}
+
+		_, isExists := filesBlockTable[update.Message.Chat.ID]
+		if !isExists {
+			filesBlockTable[update.Message.Chat.ID] = &sync.Mutex{}
+		}
+
 		if update.Message.IsCommand() {
-			go commandHandler(update, bot)
+			go commandHandler(update, bot, filesBlockTable[update.Message.Chat.ID])
 			continue
 		}
 		if update.Message.Text != "" {
-			go textHandler(update, bot)
+			go textHandler(update, bot, filesBlockTable[update.Message.Chat.ID])
 			continue
 		}
 	}
 }
 
-func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI, mutex *sync.Mutex) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var msg tgbotapi.MessageConfig
 	file, _ := openFile(update.Message.Chat.ID, os.O_APPEND|os.O_CREATE)
 
 	if file == nil {
@@ -71,14 +81,16 @@ func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 		msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Задача добавлена")
 		bot.Send(msg)
 	}
-	time.Sleep(10 * time.Second)
 }
 
-func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
+func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI, mutex *sync.Mutex) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-	buffer := bytes.Buffer{}
+
 	switch update.Message.Command() {
 	case "start":
+		buffer := bytes.Buffer{}
 		msg.ReplyMarkup = numericKeyboard
 		buffer.WriteString("Привет ")
 		buffer.WriteString(update.Message.From.FirstName)
@@ -113,5 +125,4 @@ func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	if _, err := bot.Send(msg); err != nil {
 		log.Panic(err)
 	}
-	time.Sleep(10 * time.Second)
 }
