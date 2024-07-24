@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	env "github.com/joho/godotenv"
@@ -12,8 +13,8 @@ import (
 
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("/Список дел"),
-		tgbotapi.NewKeyboardButton("/Удалить всё"),
+		tgbotapi.NewKeyboardButton("/WhatToDo"),
+		tgbotapi.NewKeyboardButton("/RemoveAll"),
 	),
 )
 
@@ -40,17 +41,16 @@ func MainBot() {
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
-
 	for update := range updates {
 		if update.Message == nil {
 			continue
 		}
 		if update.Message.IsCommand() {
-			commandHandler(update, bot)
+			go commandHandler(update, bot)
 			continue
 		}
 		if update.Message.Text != "" {
-			textHandler(update, bot)
+			go textHandler(update, bot)
 			continue
 		}
 	}
@@ -71,12 +71,12 @@ func textHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 		msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Задача добавлена")
 		bot.Send(msg)
 	}
+	time.Sleep(10 * time.Second)
 }
 
 func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 	buffer := bytes.Buffer{}
-
 	switch update.Message.Command() {
 	case "start":
 		msg.ReplyMarkup = numericKeyboard
@@ -113,4 +113,5 @@ func commandHandler(update tgbotapi.Update, bot *tgbotapi.BotAPI) {
 	if _, err := bot.Send(msg); err != nil {
 		log.Panic(err)
 	}
+	time.Sleep(10 * time.Second)
 }
