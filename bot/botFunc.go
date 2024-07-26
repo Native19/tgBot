@@ -8,36 +8,33 @@ import (
 )
 
 func getToDoList(chatID int64) (string, error) {
-	baseErr := errors.New("ToDoList пуст")
 	file, err := openFile(chatID, os.O_RDONLY)
-
 	if err != nil {
-		return "", baseErr
+		return "", errors.New("cant open file")
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return "", baseErr
+		return "", errors.New("cant read file")
 	}
 	if len(data) == 0 {
-		return "", baseErr
+		return "ToDoList is empty", nil
 	}
-	var outputData []byte = []byte("Список дел:\n")
+
+	var outputData []byte = []byte("ToDo list:\n")
 	outputData = append(outputData, data...)
 
 	return string(outputData), nil
 }
 
 func removeToDoList(chatID int64) error {
-	baseErr := errors.New("не удалось отчистить файл")
 	file, err := openFile(chatID, os.O_WRONLY|os.O_TRUNC)
-
 	if err != nil {
-		return baseErr
+		errors.New("failed to clean the file")
 	}
-
 	defer file.Close()
+
 	return nil
 }
 
@@ -45,7 +42,8 @@ func openFile(chatID int64, osOpenFlag int) (*os.File, error) {
 	fileName := strconv.FormatInt(chatID, 10) + ".txt"
 	file, err := os.OpenFile(fileName, osOpenFlag, 0666)
 	if err != nil {
-		return nil, errors.New("не удалось открыть файл")
+		return nil, errors.New("cant open file")
 	}
+
 	return file, nil
 }
