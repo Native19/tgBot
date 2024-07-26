@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func getToDoList(chatID int64) (string, error) {
+func GetToDoList(chatID int64) (string, error) {
 	file, err := openFile(chatID, os.O_RDONLY)
 	if err != nil {
 		return "", errors.New("cant open file")
@@ -28,7 +28,7 @@ func getToDoList(chatID int64) (string, error) {
 	return string(outputData), nil
 }
 
-func removeToDoList(chatID int64) error {
+func RemoveToDoList(chatID int64) error {
 	file, err := openFile(chatID, os.O_WRONLY|os.O_TRUNC)
 	if err != nil {
 		errors.New("failed to clean the file")

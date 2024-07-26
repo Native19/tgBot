@@ -193,7 +193,7 @@ func getButtonHandler(msg *tgbotapi.MessageConfig) {
 }
 
 func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	text, err := getToDoList(id)
+	text, err := GetToDoList(id)
 	if err != nil {
 		log.Print(err)
 		return fmt.Errorf("what ToDo handler: %w", err)
@@ -207,7 +207,7 @@ func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
 }
 
 func removeAllHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	if err := removeToDoList(id); err != nil {
+	if err := RemoveToDoList(id); err != nil {
 		msg.Text = "Failed to clear list"
 		return fmt.Errorf("remove all handler: %w", err)
 	}
