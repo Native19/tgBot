@@ -7,9 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 	"tgBot/bot"
+	"tgBot/http"
 )
 
 func main() {
+
+	server, err := http.ServerStart()
+	if err != nil {
+		log.Fatal(fmt.Errorf("start http server: %w", err))
+	}
+
+	fmt.Println("Server started")
+
 	newBot, err := bot.NewBot()
 	if err != nil {
 		log.Fatal(fmt.Errorf("new bot: %w", err))
@@ -26,7 +35,8 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 	<-interrupt
 
-	fmt.Println("Bot is shutting down.")
+	fmt.Println("Bot and Server are shutting down.")
 
 	startedBot.Stop()
+	http.ServerStop(server)
 }
