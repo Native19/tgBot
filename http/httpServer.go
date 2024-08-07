@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"tgBot/bot"
 	"time"
+
+	saver "tgBot/fileSaver/savers"
 )
 
 func getToDoList(w http.ResponseWriter, req *http.Request) {
@@ -18,7 +19,9 @@ func getToDoList(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	list, err := bot.GetToDoList(id)
+	bytes, err := saver.GetToDoList(id)
+	list := "ToDoList:\n" + string(bytes)
+
 	if err != nil {
 		fmt.Fprintf(w, "cant get ToDoList\n")
 		return
@@ -36,7 +39,7 @@ func removeAll(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = bot.RemoveToDoList(id)
+	err = saver.RemoveToDoList(id)
 	if err != nil {
 		fmt.Fprintf(w, "cant remove ToDoList\n")
 		return
