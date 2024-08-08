@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	saver "tgBot/fileSaver/savers"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	env "github.com/joho/godotenv"
 )
@@ -20,6 +22,8 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButton("/RemoveAll"),
 	),
 )
+
+var saverImplemen saver.Saver
 
 type Bot struct {
 	botAPI *tgbotapi.BotAPI
@@ -46,7 +50,8 @@ func NewBot() (*Bot, error) {
 	return &Bot{bot, &wg}, nil
 }
 
-func (bot *Bot) StartBot() (*Bot, error) {
+func (bot *Bot) StartBot(server saver.Saver) (*Bot, error) {
+	saverImplemen = server
 	filesBlockTable := make(map[int64]*sync.Mutex, 10)
 	limit, err := LookupEnv("GOROUTINE_LIMIT")
 	if err != nil {
@@ -103,13 +108,7 @@ func textHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync.Mu
 
 	var msg tgbotapi.MessageConfig
 
-	file, err := openFile(message.Chat.ID, os.O_APPEND|os.O_CREATE)
-	if err != nil {
-		return errors.New("textHandler cant open file")
-	}
-	defer file.Close()
-
-	if _, err := file.WriteString(message.Text + "\n"); err != nil {
+	if err := saverImplemen.SaveInToToDoList(message.Chat.ID, message.From.UserName, message.Text); err != nil {
 		return errors.New("textHandler cant write to file")
 	} else {
 		msg = tgbotapi.NewMessage(message.Chat.ID, "Task has been added")
@@ -193,7 +192,8 @@ func getButtonHandler(msg *tgbotapi.MessageConfig) {
 }
 
 func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	text, err := GetToDoList(id)
+	bytes, err := saverImplemen.GetToDoList(id)
+	text := "ToDoList:\n" + string(bytes)
 	if err != nil {
 		log.Print(err)
 		return fmt.Errorf("what ToDo handler: %w", err)
@@ -207,7 +207,7 @@ func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
 }
 
 func removeAllHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	if err := RemoveToDoList(id); err != nil {
+	if err := saverImplemen.RemoveToDoList(id); err != nil {
 		msg.Text = "Failed to clear list"
 		return fmt.Errorf("remove all handler: %w", err)
 	}
