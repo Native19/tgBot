@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"strconv"
+
+	converter "tgBot/fileSaver/converters"
 )
 
 type TxtSaver struct{}
@@ -43,7 +45,7 @@ func (saver *TxtSaver) RemoveToDoList(chatID int64) error {
 	return nil
 }
 
-func (saver *TxtSaver) SaveInToToDoList(chatID int64, userName string, message string) error {
+func (saver *TxtSaver) SaveInToToDoList(chatID int64, data converter.MessageData) error {
 	file, err := openFile(chatID, os.O_APPEND|os.O_CREATE)
 
 	if err != nil {
@@ -51,7 +53,7 @@ func (saver *TxtSaver) SaveInToToDoList(chatID int64, userName string, message s
 	}
 	defer file.Close()
 
-	if _, err := file.WriteString(message + "\n"); err != nil {
+	if _, err := file.WriteString(data.Task + "\n"); err != nil {
 		return errors.New("textHandler cant write to file")
 	} else {
 		return nil

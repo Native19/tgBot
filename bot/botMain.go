@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	converter "tgBot/fileSaver/converters"
 	saver "tgBot/fileSaver/savers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -24,6 +26,11 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 )
 
 var saverImplemen saver.Saver
+
+type Worker struct {
+	mutex    *sync.Mutex
+	stopChan chan struct{}
+}
 
 type Bot struct {
 	botAPI *tgbotapi.BotAPI
@@ -52,7 +59,7 @@ func NewBot() (*Bot, error) {
 
 func (bot *Bot) StartBot(server saver.Saver) (*Bot, error) {
 	saverImplemen = server
-	filesBlockTable := make(map[int64]*sync.Mutex, 10)
+	filesBlockTable := make(map[int64]*Worker, 10)
 	limit, err := LookupEnv("GOROUTINE_LIMIT")
 	if err != nil {
 		return nil, fmt.Errorf("bot start: %w", err)
@@ -76,18 +83,20 @@ func (bot *Bot) StartBot(server saver.Saver) (*Bot, error) {
 					continue
 				}
 
-				mutex, isExists := filesBlockTable[update.Message.Chat.ID]
+				worker, isExists := filesBlockTable[update.Message.Chat.ID]
 				if !isExists {
-					filesBlockTable[update.Message.Chat.ID] = &sync.Mutex{}
-					mutex = filesBlockTable[update.Message.Chat.ID]
+					worker = &Worker{
+						mutex:    &sync.Mutex{},
+						stopChan: make(chan struct{}),
+					}
 				}
 
 				if update.Message.IsCommand() {
-					commandHandler(update.Message, bot.botAPI, mutex)
+					commandHandler(update.Message, bot.botAPI, worker)
 					continue
 				}
 				if update.Message.Text != "" {
-					textHandler(update.Message, bot.botAPI, mutex)
+					textHandler(update.Message, bot.botAPI, worker)
 					continue
 				}
 			}
@@ -102,15 +111,20 @@ func (bot *Bot) Stop() {
 	fmt.Println("All goroutines have been stopped")
 }
 
-func textHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync.Mutex) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func textHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, worker *Worker) error {
+	worker.mutex.Lock()
+	defer worker.mutex.Unlock()
 
 	var msg tgbotapi.MessageConfig
 
-	if err := saverImplemen.SaveInToToDoList(message.Chat.ID, message.From.UserName, message.Text); err != nil {
+	data := converter.CreateMessageData(message.From.UserName, message.Text)
+	if err := saverImplemen.SaveInToToDoList(message.Chat.ID, data); err != nil {
 		return errors.New("textHandler cant write to file")
 	} else {
+		if data.IsTimeActive {
+			startTimer(data, message.Chat.ID, bot, worker.stopChan)
+		}
+
 		msg = tgbotapi.NewMessage(message.Chat.ID, "Task has been added")
 		_, err := bot.Send(msg)
 		if err != nil {
@@ -120,9 +134,9 @@ func textHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync.Mu
 	return nil
 }
 
-func commandHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync.Mutex) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func commandHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, worker *Worker) error {
+	worker.mutex.Lock()
+	defer worker.mutex.Unlock()
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, "")
 
@@ -141,6 +155,9 @@ func commandHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync
 		if err := removeAllHandler(&msg, message.Chat.ID); err != nil {
 			return fmt.Errorf("commandHandler : %w", err)
 		}
+		close(worker.stopChan)
+		fmt.Println(worker.stopChan)
+		fmt.Println("---------------------------------------------")
 	default:
 		msg.Text = "I dont know this command"
 	}
@@ -213,4 +230,22 @@ func removeAllHandler(msg *tgbotapi.MessageConfig, id int64) error {
 	}
 	msg.Text = "List is clear"
 	return nil
+}
+
+func startTimer(data converter.MessageData, chatID int64, bot *tgbotapi.BotAPI, stopChan chan struct{}) error {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			msg := tgbotapi.NewMessage(chatID, data.Task)
+			_, err := bot.Send(msg)
+			if err != nil {
+				return errors.New("message wasnt sent")
+			}
+		case <-stopChan:
+			return nil
+		}
+	}
 }

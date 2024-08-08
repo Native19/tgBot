@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	jsonConv "tgBot/fileSaver/converters"
+	converter "tgBot/fileSaver/converters"
 )
 
 type JsonSaver struct{}
@@ -29,7 +29,7 @@ func (saver *JsonSaver) GetToDoList(chatID int64) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	var messages []jsonConv.MessageData
+	var messages []converter.MessageData
 	if err := json.Unmarshal(data, &messages); err != nil {
 		return []byte{}, errors.New("failed to unmarshal JSON")
 	}
@@ -53,9 +53,7 @@ func (saver *JsonSaver) RemoveToDoList(chatID int64) error {
 	return nil
 }
 
-func (saver *JsonSaver) SaveInToToDoList(chatID int64, userName string, message string) error {
-	data := jsonConv.CreateMessageData(userName, message)
-
+func (saver *JsonSaver) SaveInToToDoList(chatID int64, data converter.MessageData) error {
 	file, err := openFileJson(chatID, os.O_RDWR|os.O_CREATE)
 
 	if err != nil {
@@ -63,7 +61,7 @@ func (saver *JsonSaver) SaveInToToDoList(chatID int64, userName string, message 
 	}
 	defer file.Close()
 
-	var messages []jsonConv.MessageData
+	var messages []converter.MessageData
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
 		return errors.New("SaveInToToDoListJson failed to read file")
