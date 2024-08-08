@@ -7,7 +7,9 @@ import (
 	"strconv"
 )
 
-func GetToDoList(chatID int64) ([]byte, error) {
+type TxtSaver struct{}
+
+func (saver *TxtSaver) GetToDoList(chatID int64) ([]byte, error) {
 	file, err := openFile(chatID, os.O_RDONLY)
 
 	if err != nil {
@@ -30,7 +32,7 @@ func GetToDoList(chatID int64) ([]byte, error) {
 	return outputData, nil
 }
 
-func RemoveToDoList(chatID int64) error {
+func (saver *TxtSaver) RemoveToDoList(chatID int64) error {
 	file, err := openFile(chatID, os.O_WRONLY|os.O_TRUNC)
 
 	if err != nil {
@@ -41,7 +43,7 @@ func RemoveToDoList(chatID int64) error {
 	return nil
 }
 
-func SaveInToToDoList(chatID int64, message string) error {
+func (saver *TxtSaver) SaveInToToDoList(chatID int64, userName string, message string) error {
 	file, err := openFile(chatID, os.O_APPEND|os.O_CREATE)
 
 	if err != nil {

@@ -10,7 +10,9 @@ import (
 	jsonConv "tgBot/fileSaver/converters"
 )
 
-func GetToDoListJson(chatID int64) ([]byte, error) {
+type JsonSaver struct{}
+
+func (saver *JsonSaver) GetToDoList(chatID int64) ([]byte, error) {
 	file, err := openFileJson(chatID, os.O_RDONLY)
 
 	if err != nil {
@@ -40,7 +42,7 @@ func GetToDoListJson(chatID int64) ([]byte, error) {
 	return outputData, nil
 }
 
-func RemoveToDoListJson(chatID int64) error {
+func (saver *JsonSaver) RemoveToDoList(chatID int64) error {
 	file, err := openFileJson(chatID, os.O_WRONLY|os.O_TRUNC)
 
 	if err != nil {
@@ -51,7 +53,7 @@ func RemoveToDoListJson(chatID int64) error {
 	return nil
 }
 
-func SaveInToToDoListJson(chatID int64, userName string, message string) error {
+func (saver *JsonSaver) SaveInToToDoList(chatID int64, userName string, message string) error {
 	data := jsonConv.CreateMessageData(userName, message)
 
 	file, err := openFileJson(chatID, os.O_RDWR|os.O_CREATE)

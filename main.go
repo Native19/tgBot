@@ -7,12 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 	"tgBot/bot"
+	saver "tgBot/fileSaver/savers"
 	"tgBot/http"
 )
 
 func main() {
-
-	server, err := http.ServerStart()
+	saverImplemen := &saver.JsonSaver{}
+	server, err := http.ServerStart(saverImplemen)
 	if err != nil {
 		log.Fatal(fmt.Errorf("start http server: %w", err))
 	}
@@ -24,7 +25,7 @@ func main() {
 		log.Fatal(fmt.Errorf("new bot: %w", err))
 	}
 
-	startedBot, err := newBot.StartBot()
+	startedBot, err := newBot.StartBot(saverImplemen)
 	if err != nil {
 		log.Fatal(fmt.Errorf("start bot: %w", err))
 	}

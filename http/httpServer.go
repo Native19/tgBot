@@ -10,6 +10,8 @@ import (
 	saver "tgBot/fileSaver/savers"
 )
 
+var saverImplemen saver.Saver
+
 func getToDoList(w http.ResponseWriter, req *http.Request) {
 
 	chatId := req.URL.Query().Get("chatId")
@@ -19,7 +21,7 @@ func getToDoList(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bytes, err := saver.GetToDoList(id)
+	bytes, err := saverImplemen.GetToDoList(id)
 	list := "ToDoList:\n" + string(bytes)
 
 	if err != nil {
@@ -39,7 +41,7 @@ func removeAll(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = saver.RemoveToDoList(id)
+	err = saverImplemen.RemoveToDoList(id)
 	if err != nil {
 		fmt.Fprintf(w, "cant remove ToDoList\n")
 		return
@@ -53,7 +55,8 @@ func hi(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "hi\n")
 }
 
-func ServerStart() (*http.Server, error) {
+func ServerStart(saver saver.Saver) (*http.Server, error) {
+	saverImplemen = saver
 	server := &http.Server{Addr: ":8000"}
 
 	http.HandleFunc("/getToDoList", getToDoList)

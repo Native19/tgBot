@@ -23,6 +23,8 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	),
 )
 
+var saverImplemen saver.Saver
+
 type Bot struct {
 	botAPI *tgbotapi.BotAPI
 	wg     *sync.WaitGroup
@@ -48,7 +50,8 @@ func NewBot() (*Bot, error) {
 	return &Bot{bot, &wg}, nil
 }
 
-func (bot *Bot) StartBot() (*Bot, error) {
+func (bot *Bot) StartBot(server saver.Saver) (*Bot, error) {
+	saverImplemen = server
 	filesBlockTable := make(map[int64]*sync.Mutex, 10)
 	limit, err := LookupEnv("GOROUTINE_LIMIT")
 	if err != nil {
@@ -105,7 +108,7 @@ func textHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, mutex *sync.Mu
 
 	var msg tgbotapi.MessageConfig
 
-	if err := saver.SaveInToToDoListJson(message.Chat.ID, message.From.UserName, message.Text); err != nil {
+	if err := saverImplemen.SaveInToToDoList(message.Chat.ID, message.From.UserName, message.Text); err != nil {
 		return errors.New("textHandler cant write to file")
 	} else {
 		msg = tgbotapi.NewMessage(message.Chat.ID, "Task has been added")
@@ -189,7 +192,7 @@ func getButtonHandler(msg *tgbotapi.MessageConfig) {
 }
 
 func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	bytes, err := saver.GetToDoListJson(id)
+	bytes, err := saverImplemen.GetToDoList(id)
 	text := "ToDoList:\n" + string(bytes)
 	if err != nil {
 		log.Print(err)
@@ -204,7 +207,7 @@ func whatToDoHandler(msg *tgbotapi.MessageConfig, id int64) error {
 }
 
 func removeAllHandler(msg *tgbotapi.MessageConfig, id int64) error {
-	if err := saver.RemoveToDoListJson(id); err != nil {
+	if err := saverImplemen.RemoveToDoList(id); err != nil {
 		msg.Text = "Failed to clear list"
 		return fmt.Errorf("remove all handler: %w", err)
 	}
