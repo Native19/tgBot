@@ -9,12 +9,13 @@ import (
 type MessageData struct {
 	User         string `json:"username"`
 	Task         string `json:"message"`
-	Time         string `json:"time"`
+	Time         string `json:"time,omitempty"`
 	IsTimeActive bool   `json:"isTimerActive"`
 }
 
 func (s *MessageData) SetTime(t time.Time) {
 	s.Time = t.Format("15:04")
+	t.IsZero()
 }
 
 func (s *MessageData) GetTime() (time.Time, error) {
@@ -34,7 +35,7 @@ func CreateMessageData(userName, message string) MessageData {
 
 	if isTimer {
 		messageData.Time = strWithoutSpaces[len(strWithoutSpaces)-5:]
-		messageData.Task = message[len(strWithoutSpaces)-6:]
+		messageData.Task = message[len(strWithoutSpaces)-5:]
 	}
 
 	return messageData

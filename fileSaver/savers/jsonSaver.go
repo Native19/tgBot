@@ -53,7 +53,10 @@ func (saver *JsonSaver) RemoveToDoList(chatID int64) error {
 	return nil
 }
 
-func (saver *JsonSaver) SaveInToToDoList(chatID int64, data converter.MessageData) error {
+func (saver *JsonSaver) SaveInToToDoList(
+	chatID int64,
+	data converter.MessageData,
+) error {
 	file, err := openFileJson(chatID, os.O_RDWR|os.O_CREATE)
 
 	if err != nil {
@@ -75,7 +78,7 @@ func (saver *JsonSaver) SaveInToToDoList(chatID int64, data converter.MessageDat
 
 	messages = append(messages, data)
 
-	jsonData, err := json.Marshal(messages)
+	jsonData, err := json.MarshalIndent(messages, "", "    ")
 	if err != nil {
 		return errors.New("cant converte into json")
 	}
