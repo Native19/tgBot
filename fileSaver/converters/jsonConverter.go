@@ -13,6 +13,11 @@ type MessageData struct {
 	IsTimeActive bool   `json:"isTimerActive"`
 }
 
+type Message struct {
+	ChatID  int64       `json:"chat_id"`
+	Message MessageData `json:"message"`
+}
+
 func (s *MessageData) SetTime(t time.Time) {
 	s.Time = t.Format("15:04")
 	t.IsZero()

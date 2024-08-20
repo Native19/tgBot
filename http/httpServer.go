@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	saver "tgBot/bot"
 	"time"
-
-	saver "tgBot/fileSaver/savers"
 )
 
 var saverImplemen saver.Saver
 
 func getToDoList(w http.ResponseWriter, req *http.Request) {
-
 	chatId := req.URL.Query().Get("chatId")
 	id, err := strconv.ParseInt(chatId, 10, 64)
 	if err != nil {
