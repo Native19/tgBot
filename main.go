@@ -12,8 +12,9 @@ import (
 )
 
 func main() {
-	saverImplemen := &saver.JsonSaver{}
-	server, err := http.ServerStart(saverImplemen)
+	fmt.Println("Start")
+	saverImplement := &saver.JsonSaver{}
+	server, err := http.ServerStart(saverImplement)
 	if err != nil {
 		log.Fatal(fmt.Errorf("start http server: %w", err))
 	}
@@ -25,7 +26,7 @@ func main() {
 		log.Fatal(fmt.Errorf("new bot: %w", err))
 	}
 
-	startedBot, err := newBot.StartBot(saverImplemen)
+	startedBot, err := newBot.StartBot(saverImplement)
 	if err != nil {
 		log.Fatal(fmt.Errorf("start bot: %w", err))
 	}
