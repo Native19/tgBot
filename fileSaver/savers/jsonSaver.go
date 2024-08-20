@@ -5,16 +5,19 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	converter "tgBot/fileSaver/converters"
 )
 
 type JsonSaver struct{}
 
+var dir = "./data"
+
 func (saver *JsonSaver) GetToDoList(chatID int64) ([]byte, error) {
 	file, err := openFileJson(chatID, os.O_RDONLY)
-
 	if err != nil {
 		return []byte{}, errors.New("cant open file")
 	}
@@ -96,16 +99,65 @@ func (saver *JsonSaver) SaveInToToDoList(
 		return errors.New("cant write in to file")
 	}
 
-	// if _, err := file.WriteString("\n"); err != nil {
-	// 	return errors.New("cant write in to file")
-	// }
-
 	return nil
+}
+
+func (saver *JsonSaver) GetTasksWithTimer() ([]converter.Message, error) {
+	pattern := dir + "/*.json"
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, errors.New("cant get files")
+	}
+
+	var messagesWithTimer []converter.Message
+	for _, filePath := range files {
+		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+		if err != nil {
+			return nil, errors.New("cant open file")
+		}
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			file.Close()
+			continue
+		}
+		if len(data) == 0 {
+			file.Close()
+			continue
+		}
+
+		var tasks []converter.MessageData
+
+		err = json.Unmarshal(data, &tasks)
+		if err != nil {
+			file.Close()
+			continue
+		}
+
+		fileNameWithExt := filepath.Base(filePath)
+		fileName := strings.TrimSuffix(fileNameWithExt, ".json")
+
+		chatID, err := strconv.ParseInt(fileName, 10, 64)
+		if err != nil {
+			file.Close()
+			continue
+		}
+
+		for _, task := range tasks {
+			if task.IsTimeActive {
+				messagesWithTimer = append(messagesWithTimer, converter.Message{chatID, task})
+			}
+		}
+		file.Close()
+	}
+	return messagesWithTimer, nil
 }
 
 func openFileJson(chatID int64, osOpenFlag int) (*os.File, error) {
 	fileName := strconv.FormatInt(chatID, 10) + ".json"
-	file, err := os.OpenFile(fileName, osOpenFlag, 0666)
+	filePath := filepath.Join(dir, fileName)
+
+	file, err := os.OpenFile(filePath, osOpenFlag, 0666)
 	if err != nil {
 		return nil, errors.New("cant open file")
 	}

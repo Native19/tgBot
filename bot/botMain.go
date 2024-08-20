@@ -11,11 +11,9 @@ import (
 	"sync"
 	"time"
 
-	converter "tgBot/fileSaver/converters"
-	saver "tgBot/fileSaver/savers"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	env "github.com/joho/godotenv"
+	converter "tgBot/fileSaver/converters"
 )
 
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
@@ -25,7 +23,7 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	),
 )
 
-var saverImplement saver.Saver
+var saverImplement Saver
 
 type Worker struct {
 	mutex    *sync.Mutex
@@ -58,14 +56,18 @@ func NewBot() (*Bot, error) {
 	return &Bot{bot, &wg, make(map[int64]*Worker, 10)}, nil
 }
 
-func (bot *Bot) StartBot(server saver.Saver) (*Bot, error) {
-	saverImplement = server
+func (bot *Bot) StartBot(saver Saver) (*Bot, error) {
+	saverImplement = saver
 	limit, err := LookupEnv("GOROUTINE_LIMIT")
 	if err != nil {
 		return nil, fmt.Errorf("bot start: %w", err)
 	}
 	goroutineLimit, err := strconv.Atoi(limit)
 	if err != nil {
+		return nil, fmt.Errorf("bot start: %w", err)
+	}
+
+	if err := StartTimersWhenLaunchingBot(bot); err != nil {
 		return nil, fmt.Errorf("bot start: %w", err)
 	}
 
@@ -123,7 +125,7 @@ func textHandler(message *tgbotapi.Message, bot *Bot, worker *Worker) error {
 
 	data := converter.CreateMessageData(message.From.UserName, message.Text)
 	if err := saverImplement.SaveInToToDoList(message.Chat.ID, data); err != nil {
-		return errors.New("textHandler cant write to file")
+		errors.New("textHandler cant write to file")
 	} else {
 		if data.IsTimeActive {
 			bot.wg.Add(1)
@@ -293,11 +295,31 @@ func getTimeUntilRun(data converter.MessageData) (time.Duration, error) {
 	dateNow := time.Now()
 	targetTimeToday := time.Date(dateNow.Year(), dateNow.Month(), dateNow.Day(), timeRun.Hour(), timeRun.Minute(), 0, 0, dateNow.Location())
 
-	// Если целевое время уже прошло сегодня, устанавливаем его на следующий день
 	if targetTimeToday.Before(dateNow) {
 		targetTimeToday = targetTimeToday.Add(24 * time.Hour)
 	}
 
 	timeUntilRun := time.Until(targetTimeToday)
 	return timeUntilRun, nil
+}
+
+func StartTimersWhenLaunchingBot(bot *Bot) error {
+	messages, err := saverImplement.GetTasksWithTimer()
+	if err != nil {
+		return errors.New("cant get messages with timer")
+	}
+
+	for _, message := range messages {
+		worker, isExists := bot.filesBlockTable[message.ChatID]
+		if !isExists {
+			worker = &Worker{
+				mutex:    &sync.Mutex{},
+				stopChan: make(chan struct{}),
+			}
+			bot.filesBlockTable[message.ChatID] = worker
+		}
+		bot.wg.Add(1)
+		go startTimer(message.Message, message.ChatID, bot, worker.stopChan)
+	}
+	return nil
 }
