@@ -26,7 +26,9 @@ func main() {
 		log.Fatal(fmt.Errorf("new bot: %w", err))
 	}
 
-	startedBot, err := newBot.StartBot(saverImplement)
+	errChan := make(chan error, 10)
+
+	startedBot, err := newBot.StartBot(saverImplement, errChan)
 	if err != nil {
 		log.Fatal(fmt.Errorf("start bot: %w", err))
 	}
@@ -34,8 +36,21 @@ func main() {
 	fmt.Println("Bot is now running.")
 
 	interrupt := make(chan os.Signal, 1)
+	var interrupted = false
+
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-	<-interrupt
+	for !interrupted {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				log.Println("goroutine err:", err)
+			}
+
+		case <-interrupt:
+			interrupted = true
+			break
+		}
+	}
 
 	fmt.Println("Bot and Server are shutting down.")
 
