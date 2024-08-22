@@ -90,7 +90,6 @@ func (saver *JsonSaver) SaveInToToDoList(
 		return errors.New("failed to truncate file")
 	}
 
-	// Устанавливаем указатель файла в начало
 	if _, err := file.Seek(0, 0); err != nil {
 		return errors.New("failed to seek file")
 	}
