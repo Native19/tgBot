@@ -62,7 +62,7 @@ func textHandler(message *tgbotapi.Message, bot *Bot, worker *Worker, errChan ch
 
 	data := converter.CreateMessageData(message.From.UserName, message.Text)
 	if err := saverImplement.SaveInToToDoList(message.Chat.ID, data); err != nil {
-		return errors.New("textHandler cant write to file")
+		return fmt.Errorf("textHandler: %w", err)
 	} else {
 		if data.IsTimeActive {
 			bot.wg.Add(1)
