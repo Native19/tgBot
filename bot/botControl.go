@@ -41,7 +41,7 @@ func (bot *Bot) StartBot(saver Saver, errChan chan<- error) (*Bot, error) {
 		return nil, fmt.Errorf("bot start: %w", err)
 	}
 
-	if err := StartTimersWhenLaunchingBot(bot); err != nil {
+	if err := StartTimersWhenLaunchingBot(bot, errChan); err != nil {
 		return nil, fmt.Errorf("bot start: %w", err)
 	}
 
