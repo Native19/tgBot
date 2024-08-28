@@ -102,6 +102,7 @@ func commandHandler(message *tgbotapi.Message, bot *tgbotapi.BotAPI, worker *Wor
 			return fmt.Errorf("commandHandler : %w", err)
 		}
 		close(worker.stopChan)
+		worker.stopChan = make(chan struct{})
 	default:
 		msg.Text = "I dont know this command"
 	}
